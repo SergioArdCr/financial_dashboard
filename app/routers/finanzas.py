@@ -10,7 +10,7 @@ from app.schemas.transaccion import ResumenCategoria
 from app.services.categorizer import categorizar
 from app.services.report_generator import generar_reporte
 from fastapi.templating import Jinja2Templates
-from fastapi import Request
+from jinja2 import Environment, FileSystemLoader
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -48,12 +48,14 @@ def subir_csv(file: UploadFile = File(...), db: Session = Depends(get_db)):
     return {"mensaje": f"{len(df)} transacciones cargadas correctamente"}
 
 @router.get("/reporte", response_class=HTMLResponse)
-def ver_reporte(request: Request, db: Session = Depends(get_db)):
+def ver_reporte(db: Session = Depends(get_db)):
     datos = generar_reporte(db)
-    return templates.TemplateResponse("reporte.html", {
-        "request": request,
-        **datos
-    })
+    
+    env = Environment(loader=FileSystemLoader("app/templates"))
+    template = env.get_template("reporte.html")
+    html = template.render(**datos)
+    
+    return HTMLResponse(content=html)
 
 @router.get("/resumen", response_model=list[ResumenCategoria])
 def ver_resumen(db: Session = Depends(get_db)):
